@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ApprovalLine">
+
+		<insert id="saveApprovalLine">
+		    INSERT ALL
+		    <foreach collection="list" item="line">
+		        INTO APPROVAL_LINE 
+		        (APPROVAL_LEVEL, APPROVAL_NO, USER_NO, TYPE, STATUS, CONFIRM_STATUS, APPROVAL_DATE, APPROVAL_LINE_TYPE)
+		        VALUES 
+		        (
+		            #{line.approvalLevel}, 
+		            #{line.approvalNo}, 
+		            #{line.userNo}, 
+		            #{line.type}, 
+		            <if test="line.approvalLevel == 1">1</if>  <!-- APPROVAL_LEVEL이 1일 경우 STATUS = 1 -->
+		            <if test="line.approvalLevel != 1">DEFAULT</if>,  <!-- 나머지는 기본값 -->
+		            DEFAULT, 
+		            SYSDATE, 
+		            #{line.approvalLineType}
+		        )
+		    </foreach>
+		    SELECT 1 FROM DUAL
+		</insert>
+		
+		<!-- 진행 중 결재 문서 조회 쿼리 -->
+		<select id="getInProgressApprovals" resultType="ApprovalLine">
+		    SELECT al.APPROVAL_NO, al.USER_NO, al.TYPE, al.APPROVAL_LEVEL, a.APPROVAL_TITLE, a.APPROVAL_DATE, al.STATUS
+		    FROM APPROVAL_LINE al
+		    JOIN APPROVAL a ON al.APPROVAL_NO = a.APPROVAL_NO
+		    WHERE al.USER_NO = #{userNo}
+		      AND al.STATUS = 1
+		      AND al.TYPE = '결재자'
+		</select>
+
+		
+		<!--즐겨찾기 정보 저장(LINE_NO자동생성)-->
+		<insert id="saveFavoriteInfo" parameterType="ApprovalFavoriteLine" useGeneratedKeys="true" keyProperty="lineNo" keyColumn="LINE_NO">
+		    INSERT INTO APPROVAL_FAVORITE_LINE (LINE_NO, FAVORITE_NAME, USER_NO) 
+		    VALUES (APPROVAL_FAVORITE_LINE_SEQ.NEXTVAL, #{favoriteName}, #{userNo})
+		</insert>
+		
+		<!--즐겨찾기 결재라인 저장-->
+		<insert id="saveFavoriteLine" parameterType="java.util.List">
+		    INSERT ALL
+		    <foreach collection="list" item="line">
+		        INTO APPROVAL_ACTUAL_LINE ("LEVEL", LINE_NO, USER_NO, "TYPE", APPROVAL_TYPE)
+		        VALUES (#{line.level}, #{line.lineNo}, #{line.userNo}, #{line.type}, #{line.approvalType})
+		    </foreach>
+		    SELECT 1 FROM DUAL
+		</insert>	
+		
+		<select id="getFavoriteLinesByUserNo" resultType="map">
+			SELECT 
+			    P.POSITION_NAME,
+			    D.DEPT_NAME,
+			    M.USER_NAME,
+			    L.FAVORITE_NAME,
+			    A.APPROVAL_TYPE,
+			    A."LEVEL",
+			    A.USER_NO
+			FROM APPROVAL_ACTUAL_LINE A
+			JOIN MEMBER M ON A.USER_NO = M.USER_NO
+			JOIN DEPARTMENT D USING(DEPT_NO)
+			JOIN POSITION P USING(POSITION_NO)
+			JOIN (
+			    SELECT LINE_NO, FAVORITE_NAME
+			    FROM APPROVAL_FAVORITE_LINE
+			    WHERE USER_NO = #{userNo}
+			) L ON A.LINE_NO = L.LINE_NO
+			ORDER BY L.FAVORITE_NAME, D.DEPT_NAME, M.USER_NAME
+		</select>
+		
+		<delete id="deleteFavoriteLine" parameterType="map">
+			DELETE FROM APPROVAL_FAVORITE_LINE
+			WHERE USER_NO = #{userNo} AND FAVORITE_NAME = #{favoriteName}
+		</delete>
+		
+		<!-- 예빈 추가 -->
+		<!-- 현재 사용자의 결재 순서 조회 -->
+		<select id="findApprovalLevel" resultType="int">
+			SELECT APPROVAL_LEVEL
+			FROM APPROVAL_LINE
+			WHERE APPROVAL_NO = #{approvalNo} AND USER_NO = #{userNo} AND TYPE = '결재자'
+		</select>
+		
+		<!-- 결재 상태 업데이트 -->
+		<update id="updateApprovalStatus">
+			UPDATE APPROVAL_LINE
+				SET STATUS = #{status}, 
+        		APPROVAL_DATE = SYSTIMESTAMP
+			WHERE APPROVAL_NO = #{approvalNo} AND USER_NO = #{userNo} AND TYPE = '결재자'
+		</update>
+		
+		<!-- 다음 결재자의 USER_NO 조회 -->
+		<select id="findNextApprover" resultType="map">
+			SELECT USER_NO, APPROVAL_LINE_TYPE
+			FROM APPROVAL_LINE
+			WHERE APPROVAL_NO = #{approvalNo} AND APPROVAL_LEVEL = #{nextLevel} AND TYPE = '결재자'
+		</select>
+		
+		<!-- 결재해야 할 남은 결재자 수 확인 -->
+		<select id="isFinalApprover" resultType="int">
+			SELECT COUNT(*)
+			FROM APPROVAL_LINE
+			WHERE APPROVAL_NO = #{approvalNo}
+			AND STATUS != 2 AND TYPE = '결재자'
+		</select>
+		
+		<!-- 최종 승인된 경우 'APPROVAL' 테이블 상태 변경 -->
+		<update id="updateFinalApproval">
+			UPDATE APPROVAL
+			SET APPROVAL_STATUS = 2,
+				END_DATE = SYSDATE
+			WHERE APPROVAL_NO = #{approvalNo}
+		</update>
+		
+		<update id="updateApprovalTypeToApproved">
+		    UPDATE APPROVAL
+		    SET APPROVAL_STATUS = 2
+		    WHERE APPROVAL_NO IN
+		    <foreach item="approvalNo" collection="list" open="(" separator="," close=")">
+		        #{approvalNo}
+		    </foreach>
+		</update>
+		
+		<!-- 예빈 추가 끝 -->
+		
+		<select id="selectApprovalType" resultType="String">
+			SELECT APPROVAL_TYPE
+ 			FROM APPROVAL
+     		WHERE APPROVAL_NO = #{approvalNo}
+		</select>
+	
+		<select id="selectLeaveDays" resultType="double">
+			SELECT LEAVE_DAYS
+			FROM LEAVE_HISTORY
+			WHERE APPROVAL_NO = #{approvalNo}
+		</select>
+	
+		<update id="updateAnnualLeave">
+			UPDATE ANNUAL_LEAVE
+			SET USED_ANNUAL_LEAVE = USED_ANNUAL_LEAVE + #{leaveDays}
+			WHERE USER_NO = #{userNo} AND YEAR = EXTRACT(YEAR FROM SYSDATE)
+		</update>
+		
+		<select id="selectApprovalUserNo" resultType="int">
+			SELECT USER_NO
+			FROM APPROVAL
+			WHERE APPROVAL_NO = #{approvalNo}
+		</select>
+</mapper>
+
+
+
+
+
+
+
+
+
+

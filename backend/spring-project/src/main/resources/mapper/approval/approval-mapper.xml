@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="Approval">
+	<!-- 결재 문서 저장 -->
+	<insert id="insertApproval" parameterType="com.workly.final_project.approval.model.vo.Approval"
+	    useGeneratedKeys="true" keyProperty="approvalNo" keyColumn="APPROVAL_NO">
+	    INSERT INTO APPROVAL (APPROVAL_NO, USER_NO, APPROVAL_TYPE, APPROVAL_STATUS, APPROVAL_TITLE, APPROVAL_CONTENT, START_DATE, APPROVAL_USER)
+	    VALUES (APPROVAL_SEQ.NEXTVAL, #{userNo}, #{approvalType}, 1, #{approvalTitle}, #{approvalContent}, SYSDATE, #{approvalUser})
+	</insert>
+	
+<!--  <select id="getAllApprovals" resultType="Approval">
+	  SELECT 
+        APPROVAL_NO as approvalNo,
+        USER_NO as userNo,
+        APPROVAL_TYPE as approvalType,
+        APPROVAL_STATUS as approvalStatus,
+        APPROVAL_TITLE as approvalTitle,
+        APPROVAL_CONTENT as approvalContent,
+        START_DATE as startDate,
+        END_DATE as endDate,
+        APPROVAL_USER as approvalUser,
+        CREATED_AT as createdAt
+    FROM APPROVAL
+    ORDER BY CREATED_AT DESC
+	</select>-->
+	
+	<!-- 내 문서함 조회 (중복 제거) -->
+	<select id="getApprovalList" resultType="Approval">
+	    SELECT 
+	        M.USER_NAME,
+	        A.APPROVAL_NO,
+	        A.USER_NO,
+	        A.APPROVAL_TYPE,
+	        A.APPROVAL_STATUS,
+	        A.APPROVAL_TITLE,
+	        A.START_DATE,
+	        A.END_DATE
+	    FROM APPROVAL A
+	    JOIN MEMBER M ON A.USER_NO = M.USER_NO
+	    WHERE A.USER_NO = #{userNo}
+	    GROUP BY A.APPROVAL_NO, M.USER_NAME, A.USER_NO, A.APPROVAL_TYPE, 
+	             A.APPROVAL_STATUS, A.APPROVAL_TITLE, A.START_DATE, A.END_DATE
+	    ORDER BY A.START_DATE DESC
+	</select>
+
+	
+	<select id="getDepartmentsWithEmployees" resultType="map">
+		SELECT
+			POSITION_NAME,
+			DEPT_NAME,
+			USER_NAME,
+			USER_NO,
+			COMPANY_ID
+		FROM MEMBER
+		JOIN DEPARTMENT USING(DEPT_NO)
+		JOIN POSITION USING(POSITION_NO)
+		ORDER BY DEPT_NAME, USER_NAME
+	</select>
+    <!-- Approval_Status가 4인 문서만 조회 -->
+    <select id="getDraftApprovals" resultType="Approval">
+        SELECT 
+            APPROVAL_NO as approvalNo,
+            USER_NO as userNo,
+            APPROVAL_TYPE as approvalType,
+            APPROVAL_STATUS as approvalStatus,
+            APPROVAL_TITLE as approvalTitle,
+            APPROVAL_CONTENT as approvalContent,
+            START_DATE as startDate,
+            END_DATE as endDate,
+            APPROVAL_USER as approvalUser
+        FROM APPROVAL
+        WHERE APPROVAL_STATUS = 4
+        ORDER BY START_DATE DESC
+    </select>
+
+    <!-- 선택한 문서 삭제 -->
+    <delete id="deleteApprovals">
+        DELETE FROM APPROVAL WHERE APPROVAL_NO IN 
+        <foreach item="approvalNo" collection="list" open="(" separator="," close=")">
+            #{approvalNo}
+        </foreach>
+    </delete>
+    
+    <!-- 임시저장 -->
+	<insert id="insertTempApproval" parameterType="Approval">
+    	INSERT INTO APPROVAL (APPROVAL_NO, USER_NO, APPROVAL_TYPE, APPROVAL_STATUS, APPROVAL_TITLE, APPROVAL_CONTENT, START_DATE)
+    	VALUES (#{approvalNo}, #{userNo}, #{approvalType}, 4, #{approvalTitle}, #{approvalContent}, SYSDATE)
+	</insert>
+
+	<!-- 임시저장 작성하기 -->
+	<select id="getApprovalByNo" resultType="Approval">
+	    SELECT * FROM APPROVAL WHERE APPROVAL_NO = #{approvalNo}
+	</select>
+
+	<select id="getApprovalData" resultType="Approval">
+		SELECT
+			USER_NO,
+			APPROVAL_NO,
+			APPROVAL_TYPE,
+			APPROVAL_STATUS,
+			APPROVAL_TITLE,
+			APPROVAL_CONTENT,
+			START_DATE,
+			APPROVAL_USER
+		FROM APPROVAL
+		WHERE APPROVAL_NO = #{approvalNo}
+	</select>
+	
+	<select id="getApprovalLine" resultType="ApprovalLine">
+		SELECT
+		    A.APPROVAL_LEVEL,
+		    A.APPROVAL_NO,
+		    A.USER_NO,
+		    A.TYPE,
+		    A.STATUS,
+		    A.CONFIRM_STATUS,
+		    A.APPROVAL_DATE,
+		    A.APPROVAL_LINE_TYPE,
+        	M.USER_NAME AS userName,
+        	D.DEPT_NAME AS deptName,
+        	P.POSITION_NAME AS positionName   
+		FROM APPROVAL_LINE A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		JOIN DEPARTMENT D ON M.DEPT_NO = D.DEPT_NO 
+		JOIN POSITION P ON M.POSITION_NO = P.POSITION_NO  
+		WHERE A.APPROVAL_NO = #{approvalNo}
+		ORDER BY A.APPROVAL_LEVEL
+	</select>
+	
+	<select id="getApprovalAttachmentByApprovalNo" resultType="ApprovalAttachment">
+		SELECT
+			FILE_NO,
+			APPROVAL_NO,
+			REF_NO,
+			ORIGIN_NAME,
+			FILE_DATA
+		FROM APPROVAL_ATTACHMENT
+		WHERE APPROVAL_NO = #{approvalNo}
+	</select>
+	
+	<select id="getApprovalMemo" resultType="map">
+		SELECT
+			D.DEPT_NAME,
+			P.POSITION_NAME,
+			M.USER_NAME,
+			A.USER_NO,
+			A.MEMO_NO,
+			A.MEMO_CONTENT,
+			A.MEMO_DATE
+		FROM APPROVAL_MEMO A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		JOIN DEPARTMENT D ON M.DEPT_NO = D.DEPT_NO 
+		JOIN POSITION P ON M.POSITION_NO = P.POSITION_NO 
+		WHERE A.APPROVAL_NO = #{approvalNo}	
+	</select>
+	
+	<select id="getApprovalWriteUser" resultType="Approval">
+		SELECT
+			USER_NAME
+		FROM APPROVAL A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		WHERE A.APPROVAL_NO = #{approvalNo}
+	</select>
+	
+
+	<select id="getApprovalRequests" resultType="Approval">
+		SELECT
+			M.USER_NAME,
+			A.APPROVAL_NO,
+			A.USER_NO,
+			A.APPROVAL_TYPE,
+			A.APPROVAL_STATUS,
+			L.STATUS,
+			A.APPROVAL_TITLE,
+			A.START_DATE,
+			A.END_DATE
+		FROM APPROVAL A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		JOIN APPROVAL_LINE L ON A.APPROVAL_NO = L.APPROVAL_NO 
+		WHERE L.USER_NO = #{userNo} AND L.TYPE = '결재자' AND A.APPROVAL_STATUS = 1 AND L.STATUS = 1 AND L.APPROVAL_LINE_TYPE = '승인'
+		ORDER BY A.START_DATE DESC
+	</select>
+	
+	<select id="getApprovalFinishList" resultType="Approval">
+		SELECT 
+		    M.USER_NAME,
+		    A.APPROVAL_NO,
+		    A.USER_NO,
+		    A.APPROVAL_TYPE,
+		    A.APPROVAL_STATUS,
+		    A.APPROVAL_TITLE,
+		    A.START_DATE,
+		    MAX(A.END_DATE) AS END_DATE
+		FROM APPROVAL A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		JOIN APPROVAL_LINE L ON A.APPROVAL_NO = L.APPROVAL_NO
+		WHERE A.USER_NO = #{userNo}
+		GROUP BY 
+		    M.USER_NAME, A.APPROVAL_NO, A.USER_NO, A.APPROVAL_TYPE, 
+		    A.APPROVAL_STATUS, A.APPROVAL_TITLE, A.START_DATE
+		ORDER BY A.START_DATE DESC
+	</select>
+	
+	<select id="getApprovalReference" resultType="Approval">
+		SELECT
+			M.USER_NAME,
+			A.APPROVAL_NO,
+			A.USER_NO,
+			A.APPROVAL_TYPE,
+			A.APPROVAL_STATUS,
+			L.STATUS,
+			A.APPROVAL_TITLE,
+			A.START_DATE,
+			A.END_DATE
+		FROM APPROVAL A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		JOIN APPROVAL_LINE L ON A.APPROVAL_NO = L.APPROVAL_NO 
+		WHERE L.USER_NO = #{userNo} AND L.TYPE = '참조자'
+		ORDER BY A.START_DATE DESC
+	</select>
+	
+	<select id="getApprovalSendList" resultType="Approval">
+		SELECT
+			M.USER_NAME,
+			A.APPROVAL_NO,
+			A.USER_NO,
+			A.APPROVAL_TYPE,
+			A.APPROVAL_STATUS,
+			L.STATUS,
+			A.APPROVAL_TITLE,
+			A.START_DATE,
+			A.END_DATE
+		FROM APPROVAL A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		JOIN APPROVAL_LINE L ON A.APPROVAL_NO = L.APPROVAL_NO 
+		WHERE L.USER_NO = #{userNo} AND L.APPROVAL_LINE_TYPE = '수신'
+		ORDER BY A.START_DATE DESC
+	</select>
+	
+	<!-- 예빈 추가 -->
+	<!-- 연차 테이블 추가 -->
+	<insert id="saveLeaveRequest" parameterType="LeaveHistory">
+		INSERT INTO LEAVE_HISTORY (LEAVE_NO, USER_NO, START_DATE, END_DATE, LEAVE_DAYS, LEAVE_TYPE, APPROVAL_NO)
+		VALUES (LEAVE_SEQ.NEXTVAL, #{userNo}, #{startDate}, #{endDate}, #{leaveDays}, #{leaveType}, #{approvalNo})
+	</insert>
+	
+	<!-- 결재 반려 시 기안서 상태 변경 -->
+	<update id="rejectApproval">
+		UPDATE APPROVAL
+		SET APPROVAL_STATUS = 3
+		WHERE APPROVAL_NO = #{approvalNo}
+	</update>
+	
+	<update id="rejectApprovalLine">
+		UPDATE APPROVAL_LINE
+		SET STATUS = 3
+		WHERE APPROVAL_NO = #{approvalNo} AND USER_NO = #{userNo}
+	</update>
+	
+	<select id="getApprovalRejectList" resultType="Approval">
+		SELECT 
+		    M.USER_NAME,
+		    A.APPROVAL_NO,
+		    A.USER_NO,
+		    A.APPROVAL_TYPE,
+		    A.APPROVAL_STATUS,
+		    A.APPROVAL_TITLE,
+		    A.START_DATE,
+		    MAX(A.END_DATE) AS END_DATE
+		FROM APPROVAL A
+		JOIN MEMBER M ON A.USER_NO = M.USER_NO
+		JOIN APPROVAL_LINE L ON A.APPROVAL_NO = L.APPROVAL_NO
+		WHERE A.USER_NO = #{userNo}
+		GROUP BY 
+		    M.USER_NAME, A.APPROVAL_NO, A.USER_NO, A.APPROVAL_TYPE, 
+		    A.APPROVAL_STATUS, A.APPROVAL_TITLE, A.START_DATE
+		ORDER BY A.START_DATE DESC
+	</select>
+	
+	<delete id="ApprovalDelete">
+		DELETE FROM APPROVAL 
+		WHERE APPROVAL_NO = #{approvalNo}
+	
+	</delete>
+	
+	<!-- 예빈 추가 끝 -->
+	
+	
+	<!--진행함-->
+	<select id="getApprovalProgressList" resultType="Approval">
+	    SELECT 
+	        a.approval_no,
+	        a.user_no,
+	        a.approval_type,
+	        a.approval_status,
+	        a.approval_title,
+	        a.approval_content,
+	        a.start_date,
+	        a.end_date,
+	        m.user_name AS userName  <!-- ✅ 추가: userName을 가져옴 -->
+	    FROM APPROVAL a
+	    JOIN MEMBER m ON a.user_no = m.user_no
+	    WHERE a.user_no = #{userNo} 
+	    AND a.approval_status = 1
+	    ORDER BY A.START_DATE DESC
+	</select>
+	
+</mapper>
+
+
+
+
+
+
+
+
+
+

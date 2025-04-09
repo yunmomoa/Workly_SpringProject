@@ -1,0 +1,19 @@
+.components {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+}
+
+.leftComponents {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 65%;
+}
+
+.rightComponents {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 35%;
+}

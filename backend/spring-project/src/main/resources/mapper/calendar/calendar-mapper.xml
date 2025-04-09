@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="calendarMapper">
+
+    <!-- ✅ 내 일정 조회 (추가된 부분) -->
+    <select id="selectMyEvents" resultType="Calendar">
+        SELECT * FROM CALENDAR WHERE USER_NO = #{userNo}
+    </select>
+
+    <!-- ✅ 팀 일정 조회 (추가된 부분) -->
+    <select id="selectTeamEvents" resultType="Calendar">
+        SELECT * FROM CALENDAR WHERE DEPT_NO = #{deptNo}
+    </select>
+
+    <!-- ✅ 일정 추가 -->
+   	<insert id="insertEvent">
+    INSERT INTO CALENDAR (CAL_NO, CATEGORY, TITLE, CONTENT, START_DATE, END_DATE, USER_NO, DEPT_NO, COLOR)
+    VALUES (CALENDER_SEQ.NEXTVAL, #{category}, #{title}, #{content, jdbcType=VARCHAR}, 
+            #{startDate, jdbcType=DATE}, #{endDate, jdbcType=DATE}, 
+            #{userNo, jdbcType=INTEGER}, #{deptNo, jdbcType=INTEGER}, #{color})
+	</insert>
+
+    <!-- ✅ 일정 수정 -->
+    <update id="updateEvent">
+        UPDATE CALENDAR
+        SET CATEGORY = #{category},
+            TITLE = #{title},
+            CONTENT = #{content},
+            START_DATE = #{startDate},
+            END_DATE = #{endDate},
+            COLOR = #{color},
+            DEPT_NO = #{deptNo, jdbcType=INTEGER},
+            MR_RES_NO = #{mrResNo, jdbcType=INTEGER}
+        WHERE CAL_NO = #{calNo}
+    </update>
+
+    <!-- ✅ 일정 삭제 -->
+    <delete id="deleteEvent">
+        DELETE FROM CALENDAR WHERE CAL_NO = #{calNo}
+    </delete>
+
+</mapper>

@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat">
+
+
+	<select id="getChatMembers" resultType="com.workly.final_project.member.model.dto.MemberDeptPositionDTO">
+	    SELECT 
+	        M.USER_NO AS userNo,
+	        M.USER_NAME AS userName,
+	        D.DEPT_NAME AS deptName,
+	        P.POSITION_NAME AS positionName,
+	        M.status_type AS statusType,
+	        CASE 
+	            WHEN M.status_type = 2 THEN '활성화'
+	            ELSE '비활성화'
+	        END AS chatStatus
+	    FROM MEMBER M
+	    JOIN DEPARTMENT D ON M.DEPT_NO = D.DEPT_NO
+	    JOIN POSITION P ON M.POSITION_NO = P.POSITION_NO
+	</select>
+
+	<insert id="addFavorite" parameterType="com.workly.final_project.chat.model.dto.FavoriteDTO">
+	    MERGE INTO CHAT_FAVORITE_USER T
+	    USING (SELECT #{userNo} AS USER_NO, #{favoriteNo} AS FAVORITE_NO FROM DUAL) S
+	    ON (T.USER_NO = S.USER_NO AND T.FAVORITE_NO = S.FAVORITE_NO)
+	    WHEN NOT MATCHED THEN
+	        INSERT (USER_NO, FAVORITE_NO) VALUES (S.USER_NO, S.FAVORITE_NO)
+	</insert>
+
+	
+	<select id="getFavoriteList" parameterType="int" resultType="com.workly.final_project.member.model.dto.MemberDeptPositionDTO">
+	    SELECT 
+	        M.USER_NO AS userNo,
+	        M.USER_NAME AS userName,
+	        D.DEPT_NAME AS deptName,
+	        P.POSITION_NAME AS positionName
+	    FROM CHAT_FAVORITE_USER F
+	    JOIN MEMBER M ON F.FAVORITE_NO = M.USER_NO
+	    JOIN DEPARTMENT D ON M.DEPT_NO = D.DEPT_NO
+	    JOIN POSITION P ON M.POSITION_NO = P.POSITION_NO
+	    WHERE F.USER_NO = #{userNo}
+	</select>
+
+	
+	<delete id="removeFavorite">
+	 	DELETE FROM CHAT_FAVORITE_USER 
+    	WHERE USER_NO = #{userNo} 
+      	AND FAVORITE_NO = #{favoriteNo}
+	</delete>
+
+
+	
+	
+	
+
+	<!-- 채팅방 생성 -->
+    <insert id="createChatRoom" parameterType="ChatRoom">
+        <selectKey keyProperty="chatRoomNo" order="BEFORE" resultType="int">
+            SELECT CHAT_ROOM_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        
+        INSERT INTO CHAT_ROOM (CHAT_ROOM_NO, ROOM_TITLE, CREATED_CHAT, CHAT_TYPE)
+        VALUES (#{chatRoomNo}, #{roomTitle}, SYSDATE, #{chatType})
+    </insert>
+
+    <!-- 채팅방 참여자 추가 -->
+    <insert id="insertChatParticipant">
+	    INSERT INTO CHAT_PARTICIPANT (CHAT_ROOM_NO, USER_NO, ENTER_DATE, BELL_SETTING)
+	    SELECT #{chatRoomNo}, userNo, SYSDATE, 'Y'
+	    FROM (
+	        <foreach collection="userNos" item="userNo" separator=" UNION ALL ">
+	            SELECT #{userNo} AS userNo FROM DUAL
+	        </foreach>
+	    )
+	</insert>
+	
+	<!-- 채팅방 나가기-->
+	<delete id="deleteChatParticipant" parameterType="map">
+	    DELETE FROM CHAT_PARTICIPANT
+	    WHERE CHAT_ROOM_NO = #{chatRoomNo} AND USER_NO = #{userNo}
+	</delete>
+
+
+	<!-- 채팅방 목록-->
+	<select id="getChatList" resultType="chatDTO">
+	    SELECT DISTINCT
+	           CR.CHAT_ROOM_NO,  
+	           CR.ROOM_TITLE,
+	           CR.CHAT_TYPE,
+	           CR.CREATED_CHAT,
+	           CP.BELL_SETTING,
+	           C.RECEIVED_DATE AS LAST_MESSAGE_TIME,
+	           (SELECT COUNT(*) 
+	            FROM CHAT 
+	            WHERE CHAT_ROOM_NO = CR.CHAT_ROOM_NO 
+	              AND CHAT_NO > NVL(UC.LAST_READ_CHAT_NO, 0)
+	           ) AS UNREAD_COUNT
+	    FROM CHAT_ROOM CR
+	    JOIN CHAT_PARTICIPANT CP ON CR.CHAT_ROOM_NO = CP.CHAT_ROOM_NO
+	    LEFT JOIN USER_CHAT UC ON CR.CHAT_ROOM_NO = UC.CHAT_ROOM_NO
+	                          AND UC.USER_NO = #{userNo}
+	    LEFT JOIN CHAT C ON C.CHAT_ROOM_NO = CR.CHAT_ROOM_NO
+	                    AND C.RECEIVED_DATE = (SELECT MAX(RECEIVED_DATE) 
+	                                           FROM CHAT 
+	                                           WHERE CHAT_ROOM_NO = CR.CHAT_ROOM_NO)
+	    WHERE CP.USER_NO = #{userNo}
+	    ORDER BY CR.CREATED_CHAT DESC
+	</select>
+
+
+	<!--채팅 메세지 저장-->
+	<insert id="saveChatMessage">
+		<selectKey keyProperty="chatNo" order="BEFORE" resultType="int">
+			SELECT CHAT_SEQ.NEXTVAL FROM DUAL
+		</selectKey>	
+		INSERT INTO CHAT (CHAT_NO, CHAT_ROOM_NO, MESSAGE, RECEIVED_DATE, USER_NO, USER_NAME)
+		VALUES (#{chatNo}, #{chatRoomNo}, #{message}, SYSTIMESTAMP, #{userNo}, #{userName})
+	</insert>
+	
+	
+	<select id="getChatMessages" resultType="com.workly.final_project.chat.model.vo.Chat">
+	    SELECT 
+	        C.CHAT_NO AS chatNo,
+	        C.CHAT_ROOM_NO AS chatRoomNo,
+	        C.MESSAGE AS message,
+	        TO_CHAR(C.RECEIVED_DATE, 'YYYY-MM-DD HH24:MI:SS') AS receivedDate,
+	        C.USER_NO AS userNo,  
+	        C.USER_NAME AS userName,
+	        (SELECT PROFILE_IMG FROM CHAT_PROFILE WHERE USER_NO = C.USER_NO) AS profileImg
+	    FROM CHAT C
+	    WHERE C.CHAT_ROOM_NO = #{chatRoomNo}
+	    ORDER BY C.CHAT_NO ASC, C.RECEIVED_DATE ASC
+	</select>
+
+
+
+
+	
+
+	<!-- UserChat 삽입 -->
+    <insert id="insertUserChat" parameterType="UserChat">
+        INSERT INTO USER_CHAT (USER_NO, CHAT_ROOM_NO, LAST_READ_CHAT_NO)
+        VALUES (#{userNo}, #{chatRoomNo}, #{lastReadChatNo})
+    </insert>
+
+
+	
+	 <!-- UserChat 업데이트 -->
+    <update id="updateUserChat" parameterType="UserChat">
+        UPDATE USER_CHAT
+        SET LAST_READ_CHAT_NO = #{lastReadChatNo}
+        WHERE USER_NO = #{userNo} AND CHAT_ROOM_NO = #{chatRoomNo}
+    </update>
+
+	<!--마지막으로 읽은 채팅 번호 조회-->
+	<select id="getLastReadChatNo" parameterType="map" resultType="int">
+	    SELECT LAST_READ_CHAT_NO
+	    FROM USER_CHAT
+	    WHERE USER_NO = #{userNo} AND CHAT_ROOM_NO = #{chatRoomNo}
+	</select>
+	
+	
+	<select id="getDepartmentList" resultType="string">
+		SELECT DEPT_NAME FROM DEPARTMENT
+	</select>
+	
+	<!-- 채팅방의 마지막 번호 조회-->
+	<select id="getLastChatNo" resultType="int">
+		SELECT MAX(CHAT_NO)
+		FROM CHAT
+		WHERE CHAT_ROOM_NO = #{chatRoomNo}
+	</select>
+	
+	<!-- 특정 유저의 USER_CHAT 정보 조회 -->
+	<select id="getUserChat" parameterType="map" resultType="UserChat">
+	    SELECT USER_NO, CHAT_ROOM_NO, LAST_READ_CHAT_NO
+	    FROM USER_CHAT
+	    WHERE USER_NO = #{userNo} AND CHAT_ROOM_NO = #{chatRoomNo}
+	</select>
+
+	<!--안읽은 채팅 수 계산-->
+	<select id="countUnreadMessages" resultType="int">
+	    SELECT COUNT(*) 
+	    FROM CHAT c
+	    WHERE c.CHAT_ROOM_NO = #{chatRoomNo}
+	    AND c.CHAT_NO > (
+	        SELECT NVL(MAX(UC.LAST_READ_CHAT_NO), 0) 
+	        FROM USER_CHAT UC 
+	        WHERE UC.USER_NO = #{userNo} AND UC.CHAT_ROOM_NO = #{chatRoomNo}
+	    )
+	</select>
+	
+	<!-- 🔹 프로필 조회 -->
+    <select id="getChatProfile" parameterType="int" resultType="string">
+        SELECT PROFILE_IMG FROM CHAT_PROFILE WHERE USER_NO = #{userNo}
+    </select>
+
+    <!-- 🔹 프로필 추가 -->
+    <insert id="insertProfile" parameterType="map">
+        INSERT INTO CHAT_PROFILE (USER_NO, PROFILE_IMG)
+        VALUES (#{userNo}, #{profileImg})
+    </insert>
+
+    <!-- 🔹 프로필 업데이트 -->
+    <update id="updateChatProfile" parameterType="map">
+        UPDATE CHAT_PROFILE 
+        SET PROFILE_IMG = #{profileImg} 
+        WHERE USER_NO = #{userNo}
+    </update>
+
+	<!-- 현재 로그인한 유저를 제외하고 채팅방의 멤버들의 프로필 이미지 가져오기 -->
+	<select id="getChatMembersWithoutMe" parameterType="map" resultType="com.workly.final_project.member.model.dto.MemberDeptPositionDTO">
+	    SELECT 
+	        M.USER_NO AS userNo,
+	        M.USER_NAME AS userName,
+	        D.DEPT_NAME AS deptName,
+	        P.POSITION_NAME AS positionName,
+	        CP.PROFILE_IMG AS profileImg
+	    FROM CHAT_PARTICIPANT CP
+	    JOIN MEMBER M ON CP.USER_NO = M.USER_NO
+	    JOIN DEPARTMENT D ON M.DEPT_NO = D.DEPT_NO
+	    JOIN POSITION P ON M.POSITION_NO = P.POSITION_NO
+	    LEFT JOIN CHAT_PROFILE CP ON CP.USER_NO = M.USER_NO
+	    WHERE CP.CHAT_ROOM_NO = #{chatRoomNo} 
+	    AND M.USER_NO != #{userNo} <!-- 현재 로그인한 유저 제외 -->
+	</select>
+
+	<!-- 채팅방 멤버 추가-->
+	<insert id="addMembersToChatRoom" parameterType="map">
+	  INSERT INTO CHAT_PARTICIPANT (CHAT_ROOM_NO, USER_NO, ENTER_DATE, BELL_SETTING)
+	  VALUES
+	  <foreach collection="userNos" item="userNo" separator=",">
+	    (#{chatRoomNo}, #{userNo}, SYSDATE, 'Y')
+	  </foreach>
+	</insert>
+
+	<!-- 멤버 검색-->
+	<select id="searchMember" resultType="Member">
+		SELECT 
+	        M.USER_NO AS userNo,
+	        M.USER_NAME AS userName,
+	        D.DEPT_NAME AS deptName,
+	        P.POSITION_NAME AS positionName
+	    FROM MEMBER M
+	    JOIN DEPARTMENT D ON M.DEPT_NO = D.DEPT_NO
+	    JOIN POSITION P USING (POSITION_NO)
+	    WHERE M.USER_NAME LIKE '%' || #{userName} || '%'
+	</select>
+	
+	<!--멤버 상태값 변경-->
+	<update id="updateMemberStatus" parameterType="map">
+	    UPDATE MEMBER
+	    SET STATUS_TYPE = #{statusType}
+	    WHERE USER_NO = #{userNo}
+	</update>
+	
+	<select id="getUserNosByChatRoom" parameterType="int" resultType="int">
+	    SELECT USER_NO FROM CHAT_PARTICIPANT WHERE CHAT_ROOM_NO = #{chatRoomNo}
+	</select>
+	
+	<!-- 사내공지 채팅방 생성 (채팅방 번호 0 고정) -->
+	<!--<insert id="createDefaultChatRoom" parameterType="com.workly.final_project.chat.model.vo.ChatRoom">
+	    INSERT INTO CHAT_ROOM (CHAT_ROOM_NO, ROOM_TITLE, CREATED_CHAT, CHAT_TYPE)
+	    VALUES (0, #{roomTitle}, SYSDATE, #{chatType})
+	</insert> -->
+	
+	<!--사내공지 채팅방 존재 여부 확인 -->
+	<select id="countDefaultChatRoom" resultType="int">
+	    SELECT COUNT(*) FROM CHAT_ROOM WHERE CHAT_ROOM_NO = 0
+	</select>
+
+
+</mapper>
+
+
+
+
+
+
+
+
+
+

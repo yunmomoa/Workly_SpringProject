@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="member">
+	<select id="loginMember" resultMap="memberDTOMap" >
+		SELECT USER_NO, STATUS_TYPE, USER_NAME, DEPT_NO, POSITION_NO, DEPT_NAME, POSITION_NAME, CHANGE_NAME, FILE_PATH, TOTAL_ANNUAL_LEAVE, USED_ANNUAL_LEAVE, HIRE_DATE
+		FROM MEMBER
+		JOIN DEPARTMENT USING(DEPT_NO)
+		JOIN POSITION USING(POSITION_NO)
+		LEFT JOIN PROFILE_ATTACHMENT ON USER_NO = REF_USER_NO AND ATTACH_STATUS = 'Y'
+        LEFT JOIN ANNUAL_LEAVE USING(USER_NO) 
+			WHERE USER_NO = #{userNo} AND USER_PWD = #{userPwd} AND YEAR = EXTRACT(YEAR FROM SYSDATE) AND MEMBER.STATUS ='Y'
+	</select>
+
+
+	<select id="selectCategoryMemberCount" resultType="int" parameterType="CategoryFilter">
+	    SELECT COUNT(*) FROM MEMBER
+	    <where>
+	        <if test="deptNo != null and deptNo != 0">
+	            AND DEPT_NO = #{deptNo}
+	        </if>
+	        <if test="positionNo != null and positionNo != 0">
+	            AND POSITION_NO = #{positionNo}
+	        </if>
+	        <if test="status != null and status != ''">
+	            AND STATUS = #{status}
+	        </if>
+	        <if test="name != null and name != ''">
+	        	AND USER_NAME LIKE CONCAT(#{name}, '%')
+	        </if>
+	    </where>
+	</select>
+	
+	<select id="selectMemberList" resultMap="memberDTOListMap" parameterType="CategoryPrDTO">
+		SELECT *
+		FROM (SELECT ROWNUM RNUM, A.*
+		      FROM (SELECT USER_NO, USER_NAME, EMAIL, EXTENSION, PHONE, DEPT_NO, DEPT_NAME, POSITION_NO, POSITION_NAME, HIRE_DATE, UPDATE_DATE, ADDRESS, ADDRESS_DETAIL, COMPANY_ID
+		            FROM MEMBER
+                    JOIN DEPARTMENT USING(DEPT_NO)
+                    JOIN POSITION USING(POSITION_NO)
+		<where>
+	        <if test="filter.deptNo != null and filter.deptNo != 0">
+	            AND DEPT_NO = #{filter.deptNo}
+	        </if>
+	        <if test="filter.positionNo != null and filter.positionNo != 0">
+	            AND POSITION_NO = #{filter.positionNo}
+	        </if>
+	        <if test="filter.status != null and filter.status != ''">
+	            AND STATUS = #{filter.status}
+	        </if>
+			<if test="filter.name != null and filter.name != ''">
+	        	AND USER_NAME LIKE '%'||#{filter.name}||'%'
+	        </if>
+	    </where>
+		            ORDER BY DEPT_NO, POSITION_NO) A)
+		WHERE RNUM BETWEEN #{pr.startRow} AND #{pr.endRow} 
+	</select>
+	
+	<resultMap id="memberDTOListMap" type="MemberDTO">
+		<association property="member" javaType="Member">
+			<id property="userNo" column="USER_NO" />
+			<result property="userName" column="USER_NAME" />
+			<result property="email" column="EMAIL" />
+			<result property="deptNo" column="DEPT_NO"/>
+			<result property="positionNo" column="POSITION_NO"/>
+			<result property="extension" column="EXTENSION" />
+			<result property="phone" column="PHONE" />
+			<result property="hireDate" column="HIRE_DATE" />
+			<result property="updateDate" column="UPDATE_DATE" />
+			<result property="address" column="ADDRESS" />
+			<result property="addressDetail" column="ADDRESS_DETAIL" />
+			<result property="companyId" column="COMPANY_ID"/>
+		</association>
+		
+		<association property="department" javaType="Department">
+			<result property="deptName" column="DEPT_NAME"/>
+		</association>
+		
+		<association property="position" javaType="Position">
+			<result property="positionName" column="POSITION_NAME"/>
+		</association>
+	</resultMap>
+
+	<insert id="insertMember" useGeneratedKeys="true">
+		<selectKey keyProperty="userNo" resultType="int" order="BEFORE">
+			SELECT (TO_CHAR(SYSDATE, 'YYYY') || LPAD(USER_NO_SEQ.NEXTVAL, 2, '0')) FROM DUAL
+		</selectKey>
+		INSERT INTO MEMBER
+		VALUES (
+			#{userNo},  
+			2, 
+			#{positionNo}, 
+			#{deptNo}, 
+			DEFAULT, 
+			#{userPwd}, #{userName}, #{phone}, #{extension}, #{email}, #{address}, #{hireDate}, 
+			'',
+			#{addressDetail}
+			)
+	</insert>
+
+	<insert id="insertLeave" parameterType="Member">
+		INSERT INTO ANNUAL_LEAVE (USER_NO, YEAR, TOTAL_ANNUAL_LEAVE, USED_ANNUAL_LEAVE)
+		SELECT 
+    		USER_NO,
+    		EXTRACT(YEAR FROM SYSDATE),
+    		LEAVE_DAYS,
+    		0
+			FROM MEMBER
+			JOIN LEAVE_POLICY 
+  				ON TRUNC(MONTHS_BETWEEN(SYSDATE, HIRE_DATE) / 12) 
+     			BETWEEN MIN_YEAR AND MAX_YEAR
+     	WHERE USER_NO = #{userNo}
+	</insert>
+	
+	<insert id="insertAttachment" parameterType="Attachment">
+		INSERT INTO PROFILE_ATTACHMENT
+		VALUES(
+			PROFILE_AT_SEQ.NEXTVAL,
+			#{refUserNo},
+			#{originalName},
+			#{changeName},
+			#{filePath},
+			SYSDATE,
+			DEFAULT
+			)
+	</insert>
+	
+	<select id="selectMember" resultMap="memberDTOMap">
+		SELECT USER_NO, USER_NAME, EMAIL, EXTENSION, PHONE, DEPT_NO, DEPT_NAME, POSITION_NO, POSITION_NAME, STATUS, HIRE_DATE, UPDATE_DATE, ADDRESS, ADDRESS_DETAIL, CHANGE_NAME, FILE_PATH 
+		FROM MEMBER
+		JOIN DEPARTMENT USING(DEPT_NO)
+		JOIN POSITION USING(POSITION_NO)
+		LEFT JOIN PROFILE_ATTACHMENT AT ON USER_NO = REF_USER_NO
+		WHERE USER_NO = #{userNo} 
+			AND (AT.ATTACH_STATUS IS NULL OR AT.ATTACH_STATUS = 'Y')
+	</select>
+
+	<resultMap id="memberDTOMap" type="MemberDTO">
+		<association property="member" javaType="Member">
+			<id property="userNo" column="USER_NO" />
+			<result property="statusType" column="STATUS_TYPE" />
+			<result property="positionNo" column="POSITION_NO"/>
+			<result property="deptNo" column="DEPT_NO"/>
+			<result property="status" column="STATUS" />
+			<result property="userName" column="USER_NAME" />
+			<result property="phone" column="PHONE" />
+			<result property="extension" column="EXTENSION" />
+			<result property="email" column="EMAIL" />
+			<result property="address" column="ADDRESS" />
+			<result property="hireDate" column="HIRE_DATE" />
+			<result property="updateDate" column="UPDATE_DATE" />
+			<result property="addressDetail" column="ADDRESS_DETAIL" />
+		</association>
+		
+		<association property="department" javaType="Department">
+			<result property="deptName" column="DEPT_NAME"/>
+		</association>
+		
+		<association property="position" javaType="Position">
+			<result property="positionName" column="POSITION_NAME"/>
+		</association>
+		
+		<association property="attachment" javaType="Attachment">
+			<result property="filePath" column="FILE_PATH"/>
+			<result property="changeName" column="CHANGE_NAME"/>
+		</association>
+		
+		<association property="annualLeave" javaType="AnnualLeave">
+			<result property="totalAnnualLeave" column="TOTAL_ANNUAL_LEAVE"/>
+			<result property="usedAnnualLeave" column="USED_ANNUAL_LEAVE"/>
+		</association>
+	</resultMap>
+	
+	<select id="selectDeptList" resultType="department">
+		SELECT * FROM DEPARTMENT
+	</select>	
+	
+	<select id="selectPosiList" resultType="position">
+		SELECT * FROM POSITION
+	</select>
+	
+	<select id="checkAttachment" resultType="int">
+		SELECT COUNT(*) FROM PROFILE_ATTACHMENT WHERE REF_USER_NO = #{userNo}
+	</select>
+	
+	<update id="deleteAttachment">
+		UPDATE PROFILE_ATTACHMENT
+		SET ATTACH_STATUS = 'N'
+		WHERE REF_USER_NO = #{userNo}
+	</update>
+	
+	<update id="updateMember">
+		UPDATE MEMBER
+		SET 
+			POSITION_NO = #{positionNo},
+			DEPT_NO = #{deptNo},
+			STATUS = #{status},
+			USER_NAME = #{userName},
+			PHONE = #{phone},
+			EXTENSION =#{extension},
+			EMAIL = #{email},
+			ADDRESS = #{address},
+			HIRE_DATE = #{hireDate},
+			ADDRESS_DETAIL = #{addressDetail},
+			UPDATE_DATE = #{updateDate},
+			ROLE = #{role}
+		WHERE USER_NO = #{userNo}
+	</update>
+	
+	<select id="selectModalMemberList" resultMap="memberDTOMap">
+		SELECT USER_NO, USER_NAME, DEPT_NO, DEPT_NAME, POSITION_NO, POSITION_NAME, STATUS, HIRE_DATE
+		FROM MEMBER
+		JOIN DEPARTMENT USING(DEPT_NO)
+		JOIN POSITION USING(POSITION_NO)
+		ORDER BY DEPT_NO, HIRE_DATE DESC
+	</select>
+	
+	<select id="currentPwdCheck" resultType="Member">
+		SELECT USER_PWD
+		FROM MEMBER
+		WHERE USER_NO = #{userNo}
+	</select>
+	
+	
+	<update id="updatePassword">
+		UPDATE MEMBER
+		SET USER_PWD = #{newPwd}
+		WHERE USER_NO = #{userNo}
+	</update>
+	
+	<update id="initUserNoSeq">
+		<![CDATA[
+		DECLARE
+    		CURRENT_VAL NUMBER;
+		BEGIN
+		    SELECT USER_NO_SEQ.NEXTVAL INTO CURRENT_VAL FROM dual;
+	    	EXECUTE IMMEDIATE 'ALTER SEQUENCE USER_NO_SEQ INCREMENT BY ' || (1 - CURRENT_VAL);
+		    SELECT USER_NO_SEQ.NEXTVAL INTO CURRENT_VAL FROM dual;
+		    EXECUTE IMMEDIATE 'ALTER SEQUENCE USER_NO_SEQ INCREMENT BY 1';
+		END;
+		]]>
+	</update>
+</mapper>
+
+
+
+
+
+
+
+
+

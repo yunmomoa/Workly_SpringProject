@@ -1,0 +1,47 @@
+@charset "UTF-8";
+
+@font-face {
+  font-family: 'NanumSquare';
+  src: url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@1.0/NanumSquareR.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* 모든 요소에 폰트 적용 */
+* {
+  font-family: 'NanumSquare', sans-serif;
+  font-weight: bold;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.mainpageContainer {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden; /* 바깥쪽 스크롤 막기 */
+}
+
+.componentContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;      /* 부모가 100vh이므로 같은 높이 사용 */
+}
+
+.componentContainer1 {
+  flex: 1; 
+  overflow-y: auto; 
+  display: column;
+  padding: 30px 50px;
+}
+
+.public-DraftEditor-content {
+  min-height: 350px;
+  padding: 10px;
+  font-size: 16px;
+  color: black;
+  cursor: text;
+  background-color: white;
+}
