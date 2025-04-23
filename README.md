@@ -44,7 +44,6 @@
       
   - **배포**
     - WEB Server(Nginx) / WAS(Apache Tomcat) 분리 구성
-    - Jenkins를 통한 자동 빌드 및 EC2 배포 파이프라인 구성
 
 ---
 <h2>구조도</h2>
