@@ -42,7 +42,7 @@
 
 ![image](https://github.com/user-attachments/assets/4f3503fb-7b06-4598-8fcf-e1b438985a88)
 
-<h2>USECASE 다이어그램</h2>
+<h2>USECASE</h2>
 
 ![image](https://github.com/user-attachments/assets/f1d0b98e-f2d8-458d-bfc5-84ef253e553b)
 
@@ -53,6 +53,10 @@
 <h2>시스템 아키텍쳐</h2>
 
 ![image](https://github.com/user-attachments/assets/664fcbac-5a98-44c2-a6cb-b55a49bafbfa)
+
+<h2>개발 환경</h2>
+
+![image](https://github.com/user-attachments/assets/12fb34ef-29f2-4648-8478-f59fa628e0b5)
 
 <h2>작업 일정</h2>
 
