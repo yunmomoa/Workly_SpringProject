@@ -52,7 +52,8 @@
 
 <h2>USECASE</h2>
 
-![image](https://github.com/user-attachments/assets/f1d0b98e-f2d8-458d-bfc5-84ef253e553b)
+![workly_USECASE](https://github.com/user-attachments/assets/4ad85dcf-4cca-4f07-9a4c-04a23baafb6c)
+
 
 <h2>ERD</h2>
 
