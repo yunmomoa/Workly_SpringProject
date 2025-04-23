@@ -53,3 +53,8 @@
 <h2>시스템 아키텍쳐</h2>
 
 ![image](https://github.com/user-attachments/assets/664fcbac-5a98-44c2-a6cb-b55a49bafbfa)
+
+<h2>작업 일정</h2>
+
+![image](https://github.com/user-attachments/assets/34429ea3-3735-420a-9c30-c03d9b14ee02)
+
