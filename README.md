@@ -56,7 +56,8 @@
 
 <h2>ERD</h2>
 
-![image](https://github.com/user-attachments/assets/dd317bc0-dfc8-49a0-a5fd-8a5c10528860)
+<img width="1450" alt="workly_ERD" src="https://github.com/user-attachments/assets/e6a947fc-b695-4fc7-a5b4-f10add9ef539" />
+
 
 <h2>시스템 아키텍쳐</h2>
 
