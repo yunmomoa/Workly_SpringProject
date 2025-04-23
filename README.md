@@ -35,3 +35,20 @@
     - 실시간 날씨 (OpenWeather API), 출퇴근 기록
   - CI/CD 구성
     - Jenkins를 통한 자동 빌드 및 EC2 배포 파이프라인 구성
+
+---
+<h2>구조도</h2>
+
+![image](https://github.com/user-attachments/assets/4f3503fb-7b06-4598-8fcf-e1b438985a88)
+
+<h2>USECASE 다이어그램</h2>
+
+![image](https://github.com/user-attachments/assets/f1d0b98e-f2d8-458d-bfc5-84ef253e553b)
+
+<h2>ERD</h2>
+
+![image](https://github.com/user-attachments/assets/dd317bc0-dfc8-49a0-a5fd-8a5c10528860)
+
+<h2>시스템 아키텍쳐</h2>
+
+![image](https://github.com/user-attachments/assets/664fcbac-5a98-44c2-a6cb-b55a49bafbfa)
