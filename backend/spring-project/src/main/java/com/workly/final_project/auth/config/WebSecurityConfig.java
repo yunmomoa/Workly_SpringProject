@@ -65,11 +65,10 @@ public class WebSecurityConfig {
 		
 		// url별 권한관리
 		http.authorizeHttpRequests(
-				config -> config.requestMatchers("/**").permitAll()
-//				config -> config.requestMatchers("/login", "/error", "/uploads/profile/**").permitAll() // 비로그인 시 접근 가능 경로
-//								.requestMatchers("/personnel", "/memberSearch", "/enroll", 
-//										 "/updatePolicy", "/leavePolicy", "/leaveDetail", "/updateLeave").hasRole("HR") // HR만 접근 가능 경로
-//								.anyRequest().hasAnyRole("USER", "HR") // USER 접근 가능 경로
+				config -> config.requestMatchers("/login", "/error", "/uploads/profile/**").permitAll() // 비로그인 시 접근 가능 경로
+								.requestMatchers("/personnel", "/memberSearch", "/enroll", 
+										 "/updatePolicy", "/leavePolicy", "/leaveDetail", "/updateLeave").hasRole("HR") // HR만 접근 가능 경로
+								.anyRequest().hasAnyRole("USER", "HR") // USER 접근 가능 경로
 				);
 		
 		// jwt활용하여 사용자를 인증시키는 필터
